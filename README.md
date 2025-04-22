@@ -1,6 +1,6 @@
 # Essay Score Evaluator
 
-A cloud-ready application that scores essays and provides AI-powered feedback using Hugging Face models.
+A cloud-ready application that scores essays and provides AI-powered feedback using open-source LLMs.
 
 ## Features
 
@@ -155,4 +155,4 @@ The application uses these Hugging Face models:
 - `facebook/bart-large-mnli` for essay classification and scoring
 - `facebook/bart-large-cnn` for generating detailed feedback
 
-Both models are accessed via the Hugging Face Inference API. 
+Both models run completely on serverless infrastructure without external API dependencies 

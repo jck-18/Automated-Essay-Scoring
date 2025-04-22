@@ -53,5 +53,6 @@ netlify/functions-serve/
 bert_multiclass_model/
 
 # Environment variables
+.env
 .env.local
 .env.*.local 
