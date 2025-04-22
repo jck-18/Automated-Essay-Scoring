@@ -76,6 +76,26 @@ Environment variables can be set in the Vercel or Netlify dashboard:
 - `USE_LIGHTWEIGHT_MODELS`: Set to "true" (recommended for serverless)
 - `MODEL_URL`: URL to custom model file (optional)
 
+## Hugging Face API Setup
+
+This application uses the Hugging Face Inference API for AI-powered essay scoring and feedback. To set up:
+
+1. Create a free account at [Hugging Face](https://huggingface.co/join)
+2. Generate an API token at https://huggingface.co/settings/tokens
+3. Add your API token to the deployment environment:
+   
+   For Vercel:
+   - Go to your project in the Vercel dashboard
+   - Go to Settings > Environment Variables
+   - Add a variable with key `HF_API_TOKEN` and your token as the value
+
+   For local development:
+   - Add your token to the `.env` file (replace `your_hugging_face_api_token_here`)
+
+The API uses the following models:
+- `distilbert-base-uncased-finetuned-sst-2-english` for scoring
+- `google/flan-t5-small` for feedback generation
+
 ## API Usage
 
 The API endpoint is available at `/api/predict`:

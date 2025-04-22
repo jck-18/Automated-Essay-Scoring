@@ -5,13 +5,13 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 import os
 import sys
-import torch
-from pathlib import Path
 import requests
+from pathlib import Path
 from dotenv import load_dotenv
 from typing import List, Optional
 import json
 from http.server import BaseHTTPRequestHandler
+import time
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -19,15 +19,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Load environment variables
 load_dotenv()
 
-# Define model paths and constants
-MODEL_PATH = os.environ.get("MODEL_PATH", "bert_multiclass_model")
-MODEL_FILE = os.environ.get("MODEL_FILE", "model.safetensors")
-MODEL_URL = os.environ.get("MODEL_URL", "https://github.com/jck-18/Automated-Essay-Scoring/releases/download/v1.0/model.safetensors")
-DEVICE = "cpu"  # Always use CPU for serverless deployments
-MAX_LEN = 256
-
-# Setup templates for the web UI
-templates = Jinja2Templates(directory="templates")
+# Hugging Face API configuration
+HF_API_TOKEN = os.environ.get("HF_API_TOKEN", "")  # Set this in your Vercel environment variables
+SCORE_MODEL_API = "https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english"
+FEEDBACK_MODEL_API = "https://api-inference.huggingface.co/models/google/flan-t5-small"
 
 # Request/Response models
 class EssayRequest(BaseModel):
@@ -39,77 +34,58 @@ class EssayResponse(BaseModel):
     confidence: float
     feedback: Optional[List[str]] = None
 
-
-# For Vercel/Netlify, we'll use lighter models and load them on demand
-def get_scoring_pipeline():
-    """Get a lightweight text classification pipeline"""
-    try:
-        from transformers import pipeline
-        classifier = pipeline(
-            "text-classification", 
-            model="distilbert-base-uncased-finetuned-sst-2-english",
-            device=-1  # Use CPU
-        )
-        return classifier
-    except Exception as e:
-        print(f"Error loading scoring model: {str(e)}")
-        return None
-
-def get_feedback_pipeline():
-    """Get a lightweight text generation pipeline"""
-    try:
-        from transformers import pipeline
-        generator = pipeline(
-            "text2text-generation",
-            model="google/flan-t5-small",  # Much smaller than BART
-            device=-1  # Use CPU
-        )
-        return generator
-    except Exception as e:
-        print(f"Error loading feedback model: {str(e)}")
-        return None
-
-# Simple in-memory cache
-model_cache = {}
-
-def get_model(model_type):
-    """Get model from cache or load it"""
-    if model_type in model_cache:
-        return model_cache[model_type]
-    
-    if model_type == "scoring":
-        model = get_scoring_pipeline()
-    elif model_type == "feedback":
-        model = get_feedback_pipeline()
-    else:
-        return None
-        
-    model_cache[model_type] = model
-    return model
-
-# Prediction and feedback functions
+# Prediction and feedback functions using Hugging Face API
 def predict_score(text):
-    """Predict the score using a lightweight model appropriate for serverless"""
-    classifier = get_model("scoring")
-    if not classifier:
-        return 0, 0.0, [0.0, 0.0]
+    """Predict the score using Hugging Face Inference API"""
+    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
+    
+    # Wait for model to load if needed with a simple retry mechanism
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(
+                SCORE_MODEL_API, 
+                headers=headers, 
+                json={"inputs": text[:500]}  # Limit text length
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                
+                # Check if we got a list of results or a loading message
+                if isinstance(result, list):
+                    # For sentiment classification, map positive/negative to score ranges
+                    prediction = result[0]
+                    if prediction["label"] == "POSITIVE":
+                        score = 5
+                    else:
+                        score = 2
+                    confidence = prediction["score"]
+                    
+                    # Create mock probabilities for visualization
+                    probs = [0.0] * 6  # Assuming scores 0-5
+                    probs[score] = confidence
+                    
+                    return score, confidence, probs
+                elif "error" in result and "currently loading" in result["error"]:
+                    # Model is still loading, wait and retry
+                    time.sleep(2)
+                    continue
+            
+            # For any other issues, return a default score
+            return 3, 0.5, [0.0, 0.0, 0.0, 0.5, 0.0, 0.0]
         
-    # For simplicity, map positive/negative to score ranges
-    result = classifier(text[:512])[0]  # Limit text length
-    score = 5 if result["label"] == "POSITIVE" else 2
-    confidence = result["score"]
+        except Exception as e:
+            print(f"Error in score prediction: {str(e)}")
+            # Try again after a delay
+            time.sleep(1)
     
-    # Create mock probabilities for visualization
-    probs = [0.0] * 6  # Assuming scores 0-5
-    probs[score] = confidence
-    
-    return score, confidence, probs
+    # If all retries failed, return default values
+    return 3, 0.5, [0.0, 0.0, 0.0, 0.5, 0.0, 0.0]
 
 def generate_feedback(text):
-    """Generate feedback using a lightweight model"""
-    generator = get_model("feedback")
-    if not generator:
-        return ["Feedback model not available."]
+    """Generate feedback using Hugging Face Inference API"""
+    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
     
     # Create prompts for different aspects of feedback
     prompts = [
@@ -120,11 +96,41 @@ def generate_feedback(text):
     
     feedbacks = []
     for prompt in prompts:
-        try:
-            result = generator(prompt, max_length=100, do_sample=False)
-            feedbacks.append(result[0]['generated_text'])
-        except Exception as e:
-            feedbacks.append(f"Could not generate feedback: {str(e)}")
+        # Wait for model to load if needed with a simple retry mechanism
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    FEEDBACK_MODEL_API, 
+                    headers=headers, 
+                    json={"inputs": prompt}
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    
+                    # Check if we got a result or a loading message
+                    if isinstance(result, list) or isinstance(result, str):
+                        generated_text = result[0]["generated_text"] if isinstance(result, list) else result
+                        feedbacks.append(generated_text)
+                        break
+                    elif "error" in result and "currently loading" in result["error"]:
+                        # Model is still loading, wait and retry
+                        time.sleep(2)
+                        continue
+                
+                # For any other issues, add a default message
+                feedbacks.append("Could not generate feedback at this time.")
+                break
+            
+            except Exception as e:
+                print(f"Error in feedback generation: {str(e)}")
+                # Try again after a delay
+                time.sleep(1)
+        
+        # If all retries failed for this prompt
+        if len(feedbacks) <= len(prompts) - 1:
+            feedbacks.append("Feedback service is currently unavailable.")
     
     return feedbacks
 
@@ -143,7 +149,8 @@ def get_html():
             textarea { width: 100%; height: 200px; padding: 10px; margin-bottom: 10px; }
             button { background-color: #4CAF50; color: white; padding: 10px 15px; border: none; cursor: pointer; }
             .result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-            .loading { display: none; }
+            .loading { display: none; margin: 20px 0; padding: 10px; background-color: #f8f9fa; border-radius: 5px; text-align: center; }
+            .disclaimer { font-size: 0.8em; color: #666; margin-top: 30px; }
         </style>
     </head>
     <body>
@@ -152,13 +159,18 @@ def get_html():
         
         <textarea id="essay" placeholder="Type or paste your essay here..."></textarea>
         <button onclick="analyzeEssay()">Analyze Essay</button>
-        <div id="loading" class="loading">Analyzing your essay...</div>
+        <div id="loading" class="loading">Analyzing your essay... (This may take a few seconds)</div>
         
         <div id="result" class="result" style="display:none;">
             <h2>Results</h2>
             <div id="score"></div>
             <h3>Feedback</h3>
             <div id="feedback"></div>
+        </div>
+        
+        <div class="disclaimer">
+            <p>Note: This application uses AI to evaluate essays. Results should be considered as suggestions rather than definitive assessments.</p>
+            <p>Powered by Hugging Face Inference API and Vercel.</p>
         </div>
 
         <script>
