@@ -11,15 +11,13 @@ import requests
 from dotenv import load_dotenv
 from typing import List, Optional
 import json
+from http.server import BaseHTTPRequestHandler
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Load environment variables
 load_dotenv()
-
-# Initialize FastAPI app
-app = FastAPI(title="Essay Scoring API")
 
 # Define model paths and constants
 MODEL_PATH = os.environ.get("MODEL_PATH", "bert_multiclass_model")
@@ -130,12 +128,9 @@ def generate_feedback(text):
     
     return feedbacks
 
-# API routes
-@app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    """Return a simple HTML page"""
-    # Simplified HTML interface
-    html = """
+# HTML for the frontend
+def get_html():
+    return """
     <!DOCTYPE html>
     <html>
     <head>
@@ -178,7 +173,7 @@ async def read_root(request: Request):
                 document.getElementById('result').style.display = 'none';
                 
                 try {
-                    const response = await fetch('/api/predict', {
+                    const response = await fetch('/api', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ text: essay })
@@ -206,25 +201,62 @@ async def read_root(request: Request):
     </body>
     </html>
     """
-    return HTMLResponse(content=html)
 
-@app.post("/api/predict", response_model=EssayResponse)
-async def predict_api(request: EssayRequest):
-    """API endpoint for essay prediction"""
-    # Get score
-    label, confidence, _ = predict_score(request.text)
-    
-    # Get feedback if requested
-    feedbacks = generate_feedback(request.text) if request.feedback_required else None
-    
-    return EssayResponse(
-        score=label,
-        confidence=float(confidence),
-        feedback=feedbacks
-    )
+# Vercel serverless function handler
+class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(get_html().encode())
+        
+    def do_POST(self):
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        data = json.loads(post_data.decode('utf-8'))
+        
+        # Process the essay
+        text = data.get('text', '')
+        label, confidence, _ = predict_score(text)
+        feedbacks = generate_feedback(text)
+        
+        # Prepare response
+        response = {
+            'score': label,
+            'confidence': float(confidence),
+            'feedback': feedbacks
+        }
+        
+        # Send response
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(response).encode())
 
-# For local development
+# For local testing
 if __name__ == "__main__":
     import uvicorn
+    from fastapi import FastAPI
+    
+    app = FastAPI(title="Essay Scoring API")
+    
+    @app.get("/", response_class=HTMLResponse)
+    async def read_root(request: Request):
+        return HTMLResponse(content=get_html())
+    
+    @app.post("/api", response_model=EssayResponse)
+    async def predict_api(request: EssayRequest):
+        # Get score
+        label, confidence, _ = predict_score(request.text)
+        
+        # Get feedback if requested
+        feedbacks = generate_feedback(request.text) if request.feedback_required else None
+        
+        return EssayResponse(
+            score=label,
+            confidence=float(confidence),
+            feedback=feedbacks
+        )
+    
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port) 
