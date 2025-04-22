@@ -1,0 +1,2 @@
+# Ignore large model files
+bert_multiclass_model/model.safetensors 
