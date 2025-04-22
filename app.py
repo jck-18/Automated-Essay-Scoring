@@ -9,7 +9,8 @@ from pathlib import Path
 # Constants
 MODEL_PATH = "bert_multiclass_model"
 MODEL_FILE = "model.safetensors"
-MODEL_URL = "YOUR_CLOUD_STORAGE_URL_HERE"  # Replace with your actual cloud storage URL
+# Default to GitHub Release URL - change if using a different storage option
+MODEL_URL = "https://github.com/jck-18/Automated-Essay-Scoring/releases/download/v1.0/model.safetensors" 
 MAX_LEN = 256
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -36,6 +37,7 @@ def download_model_if_needed():
             st.success("Model downloaded successfully!")
         except Exception as e:
             st.error(f"Error downloading model: {str(e)}")
+            st.error("Please download the model file manually from GitHub Releases and place it in the bert_multiclass_model directory.")
             st.stop()
 
 # Load model and tokenizer
@@ -50,14 +52,20 @@ def load_model():
     model.eval()
     return tokenizer, model
 
-tokenizer, model = load_model()
-
 # Title
 st.title("📝 Essay Score Evaluator")
 st.write("Enter your essay below to get the predicted score based on a fine-tuned BERT model.")
 
 # Essay input
 essay = st.text_area("✍️ Your Essay", height=300)
+
+# Load model
+try:
+    tokenizer, model = load_model()
+except Exception as e:
+    st.error(f"Error loading model: {str(e)}")
+    st.error("Please make sure the model files are correctly placed in the bert_multiclass_model directory.")
+    st.stop()
 
 # Predict function
 def predict_score(text):

@@ -17,9 +17,15 @@ A Streamlit web application that uses a fine-tuned BERT model to evaluate and sc
 
 ### Model Setup
 
-The model file is too large for GitHub (417MB+). You have two options:
+The model file is too large for GitHub (417MB+). You have three options:
 
-#### Option 1: Use External Storage (Recommended)
+#### Option 1: Download from GitHub Release (Recommended)
+
+1. Go to the [Releases](https://github.com/jck-18/Automated-Essay-Scoring/releases) section of this repository
+2. Download the `model.safetensors` file from the latest release
+3. Place it in the `bert_multiclass_model` directory
+
+#### Option 2: Use External Storage
 
 1. Upload the `model.safetensors` file to a cloud storage service (Google Drive, Dropbox, AWS S3, etc.)
 2. Generate a direct download link for the file
@@ -28,9 +34,9 @@ The model file is too large for GitHub (417MB+). You have two options:
    MODEL_URL = "YOUR_CLOUD_STORAGE_URL_HERE"  # Replace with your actual URL
    ```
 
-#### Option 2: Local Setup
+#### Option 3: Local Setup (if you already have the model)
 
-If running locally:
+If running locally and you already have the model file:
 1. Ensure the `bert_multiclass_model` directory contains:
    - `model.safetensors`
    - `config.json`
@@ -49,7 +55,7 @@ streamlit run app.py
 ### Vercel
 
 When deploying to Vercel, ensure:
-1. You have updated the `MODEL_URL` to point to your cloud storage
+1. You have updated the `MODEL_URL` to point to either the GitHub Release download URL or another cloud storage location
 2. Add `requests` to your requirements.txt if not already present
 
 ### Other Platforms
