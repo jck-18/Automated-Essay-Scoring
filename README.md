@@ -1,14 +1,33 @@
 # Essay Score Evaluator
 
-A cloud-ready application that scores essays and provides AI-powered feedback using open-source LLMs.
+A cloud-ready application that scores essays and provides AI-powered feedback using Hugging Face models.
 
 ## Features
 
-- Essay scoring using lightweight open-source models
+- Essay scoring using natural language processing
 - AI-powered feedback on grammar, structure, and content
 - Single-page web application with clean UI
 - Serverless deployment for Vercel and Netlify
-- Memory-efficient design for cost-effective cloud hosting
+- API-driven design for reliable performance
+
+## ⚠️ IMPORTANT: API Setup Required
+
+This application requires a Hugging Face API token to function correctly. Without it, you'll receive generic scores and feedback.
+
+### Setting Up Your API Token:
+
+1. Create a free account at [Hugging Face](https://huggingface.co/join)
+2. Generate an API token at https://huggingface.co/settings/tokens
+3. Add your API token:
+   
+   **For Vercel deployment:**
+   - Go to your project in the Vercel dashboard
+   - Go to Settings > Environment Variables
+   - Add a variable with key `HF_API_TOKEN` and your token as the value
+   - Redeploy your application
+
+   **For local development:**
+   - Add your token to the `.env` file (replace the placeholder text with your actual token)
 
 ## Deployment Options
 
@@ -19,7 +38,9 @@ A cloud-ready application that scores essays and provides AI-powered feedback us
    pip install -r requirements.txt
    ```
 
-2. Run the application:
+2. Set up your Hugging Face API token in the `.env` file
+
+3. Run the application:
    ```
    cd api
    python index.py
@@ -47,6 +68,8 @@ A cloud-ready application that scores essays and provides AI-powered feedback us
    vercel --prod
    ```
 
+5. **IMPORTANT**: Add your Hugging Face API token in the Vercel dashboard under environment variables
+
 ### Netlify Deployment
 
 1. Install Netlify CLI:
@@ -69,39 +92,44 @@ A cloud-ready application that scores essays and provides AI-powered feedback us
    netlify deploy --prod
    ```
 
-### Configuration
+5. **IMPORTANT**: Add your Hugging Face API token in the Netlify dashboard under environment variables
 
-Environment variables can be set in the Vercel or Netlify dashboard:
+## Troubleshooting
 
-- `USE_LIGHTWEIGHT_MODELS`: Set to "true" (recommended for serverless)
-- `MODEL_URL`: URL to custom model file (optional)
+### My essays always get a score of 3 with 50% confidence
 
-## Hugging Face API Setup
+This indicates that the application is not successfully connecting to the Hugging Face API. Check:
+1. Have you set up a valid API token in your environment variables?
+2. Is your API token correctly formatted?
+3. Check the logs for any error messages related to API calls
 
-This application uses the Hugging Face Inference API for AI-powered essay scoring and feedback. To set up:
+### The feedback is generic or nonsensical
 
-1. Create a free account at [Hugging Face](https://huggingface.co/join)
-2. Generate an API token at https://huggingface.co/settings/tokens
-3. Add your API token to the deployment environment:
-   
-   For Vercel:
-   - Go to your project in the Vercel dashboard
-   - Go to Settings > Environment Variables
-   - Add a variable with key `HF_API_TOKEN` and your token as the value
+This typically indicates one of the following issues:
+1. Missing or invalid API token
+2. API rate limiting (free Hugging Face accounts have limited requests per minute)
+3. Models are still loading - try again in a few minutes
 
-   For local development:
-   - Add your token to the `.env` file (replace `your_hugging_face_api_token_here`)
+### How to test if your API token is working
 
-The API uses the following models:
-- `distilbert-base-uncased-finetuned-sst-2-english` for scoring
-- `google/flan-t5-small` for feedback generation
+Run the following curl command (replace YOUR_TOKEN with your actual token):
+
+```
+curl -X POST \
+  https://api-inference.huggingface.co/models/facebook/bart-large-mnli \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"inputs": "This is a test"}'
+```
+
+If it returns JSON data, your token is working correctly.
 
 ## API Usage
 
-The API endpoint is available at `/api/predict`:
+The API endpoint is available at `/api`:
 
 ```json
-POST /api/predict
+POST /api
 {
   "text": "Your essay text here...",
   "feedback_required": true
@@ -121,19 +149,10 @@ Response:
 }
 ```
 
-## Architecture
+## Models Used
 
-For serverless deployment on Vercel/Netlify, this application:
+The application uses these Hugging Face models:
+- `facebook/bart-large-mnli` for essay classification and scoring
+- `facebook/bart-large-cnn` for generating detailed feedback
 
-1. Uses lightweight models (DistilBERT and Flan-T5-small) for memory efficiency
-2. Implements efficient model caching
-3. Delivers an in-browser UI without requiring a separate frontend
-4. Leverages serverless functions to scale automatically
-
-## Models
-
-The application uses:
-- DistilBERT for lightweight essay scoring
-- Google's Flan-T5-small for generating feedback
-
-Both models run completely on serverless infrastructure without external API dependencies 
+Both models are accessed via the Hugging Face Inference API. 
