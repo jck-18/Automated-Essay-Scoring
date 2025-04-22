@@ -1,0 +1,20 @@
+[build]
+  # Directory to change to before starting a build
+  base = "."
+  
+  # The command to build your site
+  command = "mkdir -p api"
+  
+  # Directory where the serverless functions exist
+  functions = "api"
+
+# Routes configuration
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/index"
+  status = 200
+
+# Build environment variables
+[build.environment]
+  PYTHONUNBUFFERED = "1"
+  USE_LIGHTWEIGHT_MODELS = "true" 

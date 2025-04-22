@@ -1,2 +1,56 @@
 # Ignore large model files
 bert_multiclass_model/model.safetensors 
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Node (for Vercel/Netlify)
+node_modules/
+npm-debug.log
+
+# Vercel
+.vercel/
+
+# Netlify
+.netlify/
+netlify/functions-serve/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Model files
+*.safetensors
+*.ckpt
+*.bin
+bert_multiclass_model/
+
+# Environment variables
+.env.local
+.env.*.local 
