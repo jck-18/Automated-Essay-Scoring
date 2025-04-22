@@ -1,67 +1,119 @@
 # Essay Score Evaluator
 
-A Streamlit web application that uses a fine-tuned BERT model to evaluate and score essays.
+A cloud-ready application that scores essays and provides AI-powered feedback using open-source LLMs.
 
 ## Features
 
-- Upload or type an essay for automatic scoring
-- View the confidence level of the predicted score
-- Visualize the probability distribution across all possible scores
+- Essay scoring using lightweight open-source models
+- AI-powered feedback on grammar, structure, and content
+- Single-page web application with clean UI
+- Serverless deployment for Vercel and Netlify
+- Memory-efficient design for cost-effective cloud hosting
 
-## Setup Instructions
+## Deployment Options
 
-### Prerequisites
+### Local Development
 
-- Python 3.8+
-- Required Python packages (install using `pip install -r requirements.txt`)
-
-### Model Setup
-
-The model file is too large for GitHub (417MB+). You have three options:
-
-#### Option 1: Download from GitHub Release (Recommended)
-
-1. Go to the [Releases](https://github.com/jck-18/Automated-Essay-Scoring/releases) section of this repository
-2. Download the `model.safetensors` file from the latest release
-3. Place it in the `bert_multiclass_model` directory
-
-#### Option 2: Use External Storage
-
-1. Upload the `model.safetensors` file to a cloud storage service (Google Drive, Dropbox, AWS S3, etc.)
-2. Generate a direct download link for the file
-3. Replace the `MODEL_URL` in `app.py` with your download link:
-   ```python
-   MODEL_URL = "YOUR_CLOUD_STORAGE_URL_HERE"  # Replace with your actual URL
+1. Install dependencies:
+   ```
+   pip install -r requirements.txt
    ```
 
-#### Option 3: Local Setup (if you already have the model)
+2. Run the application:
+   ```
+   cd api
+   python index.py
+   ```
 
-If running locally and you already have the model file:
-1. Ensure the `bert_multiclass_model` directory contains:
-   - `model.safetensors`
-   - `config.json`
-   - `tokenizer_config.json`
-   - `vocab.txt`
-   - `special_tokens_map.json`
+### Vercel Deployment
 
-### Running the App
+1. Install Vercel CLI:
+   ```
+   npm install -g vercel
+   ```
 
-```bash
-streamlit run app.py
+2. Login to Vercel:
+   ```
+   vercel login
+   ```
+
+3. Deploy to Vercel:
+   ```
+   vercel
+   ```
+
+4. For production deployment:
+   ```
+   vercel --prod
+   ```
+
+### Netlify Deployment
+
+1. Install Netlify CLI:
+   ```
+   npm install -g netlify-cli
+   ```
+
+2. Login to Netlify:
+   ```
+   netlify login
+   ```
+
+3. Deploy to Netlify:
+   ```
+   netlify deploy
+   ```
+
+4. For production deployment:
+   ```
+   netlify deploy --prod
+   ```
+
+### Configuration
+
+Environment variables can be set in the Vercel or Netlify dashboard:
+
+- `USE_LIGHTWEIGHT_MODELS`: Set to "true" (recommended for serverless)
+- `MODEL_URL`: URL to custom model file (optional)
+
+## API Usage
+
+The API endpoint is available at `/api/predict`:
+
+```json
+POST /api/predict
+{
+  "text": "Your essay text here...",
+  "feedback_required": true
+}
 ```
 
-## Deployment
+Response:
+```json
+{
+  "score": 5,
+  "confidence": 0.92,
+  "feedback": [
+    "Grammar feedback...",
+    "Clarity feedback...",
+    "Structure feedback..."
+  ]
+}
+```
 
-### Vercel
+## Architecture
 
-When deploying to Vercel, ensure:
-1. You have updated the `MODEL_URL` to point to either the GitHub Release download URL or another cloud storage location
-2. Add `requests` to your requirements.txt if not already present
+For serverless deployment on Vercel/Netlify, this application:
 
-### Other Platforms
+1. Uses lightweight models (DistilBERT and Flan-T5-small) for memory efficiency
+2. Implements efficient model caching
+3. Delivers an in-browser UI without requiring a separate frontend
+4. Leverages serverless functions to scale automatically
 
-For platforms like Heroku, Render, etc., the same process applies - ensure the model is accessible via a URL and that the app can download it at runtime.
+## Models
 
-## License
+The application uses:
+- DistilBERT for lightweight essay scoring
+- Google's Flan-T5-small for generating feedback
 
-[Insert your license information here] 
+Both models run completely on serverless infrastructure without external API dependencies 
